@@ -4,6 +4,8 @@ from keras.applications.vgg16 import preprocess_input
 from keras.layers import Input, Flatten, Dense
 from keras.models import Model
 import numpy as np
+import json
+
 
 # Load VGG16 network
 model = VGG16(weights='imagenet', include_top=False)
@@ -11,11 +13,26 @@ print(model.summary())
 
 
 # Image loading/preprocessing
-img_path = './traindata/2.jpg'
-img = image.load_img(img_path, target_size=(200, 200))
-x = image.img_to_array(img)
-x = np.expand_dims(x, axis=0)
-x = preprocess_input(x)
+
+
+#Data
+train_data = []
+img_path = './valdata/'
+for file in os.listdir(img_path):
+	img = image.load_img(img_path + file, target_size=(200, 200))
+	x = image.img_to_array(img)
+	x = np.expand_dims(x, axis=0)
+	x = preprocess_input(x)
+	train_data.append(x)
+
+
+#Labels
+
+#CONTINUE HERE
+train_labels = []
+with open('validation.json') as json_data:
+    d = json.load(json_data)
+    print(d)
 
 
 #Append input layers before the pretrained network
@@ -26,7 +43,7 @@ model = model(input)
 model = Flatten(name='flatten')(model)
 model = Dense(4096, activation='relu', name='fc1')(model)
 model = Dense(4096, activation='relu', name='fc2')(model)
-model = Dense(8, activation='softmax', name='predictions')(model)
+model = Dense(120, activation='softmax', name='predictions')(model)
 
 finalModel = Model(input=input, output=model)
 
