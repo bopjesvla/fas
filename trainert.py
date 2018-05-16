@@ -37,8 +37,8 @@ print(dataset)
 
 
 
-'''
-#Labels
+
+#Labelsdat
 
 #CONTINUE HERE
 train_labels = []
@@ -48,9 +48,10 @@ with open('validation.json') as json_data:
 images = d['annotations']
 
 for el in images:
-	print(el['imageId'])
+	imgId = el['imageId']
+	dataLoc = dataset.loc[dataset['name'] == imgId]
+	dataset.loc[dataset['name'] == '10', 'labels'] = pd.Series(['19', '34343' ,'344'])
 
-'''
 
 '''
 
