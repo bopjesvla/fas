@@ -1,8 +1,8 @@
 import os
 import json
 
-DATA_folder = './res/DATASET'
-image_folder = './res/train'
+DATA_folder = '.'
+image_folder = './root/data/train/'
 
 with open(DATA_folder + '/train.json') as json_data:
     labels = {d['imageId']:d['labelId'] for d in json.load(json_data)['annotations']}
