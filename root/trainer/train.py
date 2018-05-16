@@ -6,17 +6,19 @@
 from __future__ import absolute_import
 import numpy as np
 import pandas as pd
-from keras.models import Sequential
-from keras.layers import Dense, Embedding, LSTM
+from keras.models import Sequential, Model
+from keras.layers import Dense, Embedding, LSTM, Input, Flatten, GlobalAveragePooling2D
 from sklearn.model_selection import train_test_split
 from keras.preprocessing import sequence, image
 from keras.applications.vgg19 import VGG19
+from keras.applications.vgg16 import VGG16
 import sklearn
 import argparse
 
 import json
 from tensorflow.python.lib.io import file_io
 
+LABELS = 228
 
 def load_data(path):
     """
@@ -41,7 +43,19 @@ def create_model():
     # model.add(Dense(42, activation='relu'))
     # model.add((Dense(6, activation='sigmoid')))
 
-    model = VGG19(weights='imagenet')
+    x = VGG16(weights='imagenet', include_top=False)
+    input = Input(shape=(256,256,3), name='image_input')
+    x = x(input)
+
+    # for layer in x.layers[1:]:
+    #     layer.trainable = False
+
+    x = Flatten(name='flatten')(x)
+    x = Dense(4096, activation='relu', name='fc1')(x)
+    x = Dense(4096, activation='relu', name='fc2')(x)
+    x = Dense(LABELS, activation='softmax', name='predictions')(x)
+
+    model = Model(input=input, output=x)
 
     model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
 
@@ -54,8 +68,24 @@ def main(train_folder, test_file, job_dir):
     model = create_model()
     # model.fit(X_train, y_train, nb_epoch=1, batch_size=32, verbose=2)
     gen = image.ImageDataGenerator()
-    x = gen.flow_from_directory('../data')
-    model.fit_generator(x, steps_per_epoch=10)
+    data = gen.flow_from_directory('../data2', shuffle=False)
+
+    # labels = {d["imageId"]: d["labelId"] for d in json.loads('train.json')["annotations"]}
+
+    def label(fn):
+        labels = fn.split('[')[1].split(']')[0].split(', ')
+        labels = np.array([int(l) for l in labels])
+        one_hot_labels = np.zeros((LABELS))
+        one_hot_labels[labels] = 1
+        return one_hot_labels
+
+    def labels(gen):
+        idx = gen.batch_index * gen.batch_size
+        return np.array([label(fn) for fn in gen.filenames[idx : idx + gen.batch_size]])
+
+    gen = ((x, labels(data)) for (x, _) in data)
+
+    model.fit_generator(gen, steps_per_epoch=10)
     score, accuracy = model.evaluate(X_validation, y_validation)
     print('Test score:', score)
     print('Test accuracy:', accuracy)

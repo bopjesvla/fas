@@ -11,10 +11,13 @@ print(model.summary())
 
 
 # Image loading/preprocessing
-img_path = './traindata/2.jpg'
+img_path = './root/data/train/2.jpeg'
 img = image.load_img(img_path, target_size=(200, 200))
 x = image.img_to_array(img)
-x = np.expand_dims(x, axis=0)
+
+print(x.shape)
+
+# x = np.array([x])
 x = preprocess_input(x)
 
 
@@ -30,7 +33,11 @@ model = Dense(8, activation='softmax', name='predictions')(model)
 
 finalModel = Model(input=input, output=model)
 
-print(finalModel.summary())
+finalModel.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
 
-features = finalModel.predict(x)
-print(features)
+finalModel.summary()
+
+finalModel.fit(np.array([x]), np.array([[1 for i in range(8)]]))
+
+# features = finalModel.predict(x)
+# print(features)
