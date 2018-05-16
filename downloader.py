@@ -28,10 +28,10 @@ def download_image(fnames_and_urls):
         response = http.request("GET", url)
         image = Image.open(io.BytesIO(response.data))
         image_rgb = image.convert("RGB")
-        image_rgb.save(fname, format='JPEG', quality=90)
+        image_rgb.save(fname, format='JPEG', quality=85)
 
 
-def parse_dataset(_dataset, _outdir, _max=10000):
+def parse_dataset(_dataset, _outdir, _max=300):
     """
     parse the dataset to create a list of tuple containing absolute path and url of image
     :param _dataset: dataset to parse
