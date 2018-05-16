@@ -14,6 +14,7 @@ from keras.applications.vgg19 import VGG19
 from keras.applications.vgg16 import VGG16
 import sklearn
 import argparse
+import os
 
 import json
 from tensorflow.python.lib.io import file_io
@@ -68,7 +69,13 @@ def main(train_folder, test_file, job_dir):
     model = create_model()
     # model.fit(X_train, y_train, nb_epoch=1, batch_size=32, verbose=2)
     gen = image.ImageDataGenerator()
-    data = gen.flow_from_directory('../data2', shuffle=False)
+
+    if os.path.isdir('../data2'):
+        data_dir = '../data2'
+    else:
+        data_dir = 'gs://imaterialist_challenge_data/'
+
+    data = gen.flow_from_directory(data_dir, shuffle=False, classes=['train'])
 
     # labels = {d["imageId"]: d["labelId"] for d in json.loads('train.json')["annotations"]}
 
@@ -86,7 +93,6 @@ def main(train_folder, test_file, job_dir):
     gen = ((x, labels(data)) for (x, _) in data)
 
     model.fit_generator(gen, steps_per_epoch=10)
-    score, accuracy = model.evaluate(X_validation, y_validation)
     print('Test score:', score)
     print('Test accuracy:', accuracy)
 
@@ -102,7 +108,6 @@ def main(train_folder, test_file, job_dir):
     with file_io.FileIO('model.h5', mode='r') as input_f:
         with file_io.FileIO('./tmp/model.h5', mode='w+') as output_f:
             output_f.write(input_f.read())
-
 
 if __name__ == '__main__':
     """
