@@ -54,7 +54,7 @@ def create_model():
     x = Flatten(name='flatten')(x)
     x = Dense(4096, activation='relu', name='fc1')(x)
     x = Dense(4096, activation='relu', name='fc2')(x)
-    x = Dense(LABELS, activation='softmax', name='predictions')(x)
+    x = Dense(LABELS, activation='sigmoid', name='predictions')(x)
 
     model = Model(input=input, output=x)
 
@@ -70,8 +70,8 @@ def main(train_folder, test_file, job_dir):
     # model.fit(X_train, y_train, nb_epoch=1, batch_size=32, verbose=2)
     gen = image.ImageDataGenerator()
 
-    if os.path.isdir('../data2'):
-        data_dir = '../data2'
+    if os.path.isdir('../data'):
+        data_dir = '../data'
     else:
         data_dir = 'gs://imaterialist_challenge_data/'
 
@@ -81,7 +81,7 @@ def main(train_folder, test_file, job_dir):
 
     def label(fn):
         labels = fn.split('[')[1].split(']')[0].split(', ')
-        labels = np.array([int(l) for l in labels])
+        labels = np.array([int(l) for l in labels]) - 1 # LOOK! WE SUBTRACT ONE! ALL LABELS ARE OFF BY ONE! e.g., 227 is actually 228.
         one_hot_labels = np.zeros((LABELS))
         one_hot_labels[labels] = 1
         return one_hot_labels
@@ -91,6 +91,10 @@ def main(train_folder, test_file, job_dir):
         return np.array([label(fn) for fn in gen.filenames[idx : idx + gen.batch_size]])
 
     gen = ((x, labels(data)) for (x, _) in data)
+
+    for (x, y) in gen:
+        print(y[:,65])
+        break
 
     model.fit_generator(gen, steps_per_epoch=10)
     print('Test score:', score)

@@ -31,7 +31,6 @@ for file in os.listdir(img_path):
 	#train_data.append(x)
 
 
-print(dataset)
 
 #CONTINUE HERE
 train_labels = []
