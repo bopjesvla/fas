@@ -16,7 +16,6 @@ import sklearn
 import argparse
 import os
 import matplotlib.pyplot as plt
-import PI
 
 import json
 from tensorflow.python.lib.io import file_io
