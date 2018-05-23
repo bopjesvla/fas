@@ -15,6 +15,7 @@ from keras.applications.vgg16 import VGG16
 import sklearn
 import argparse
 import os
+import matplotlib.pyplot as plt
 
 import json
 from tensorflow.python.lib.io import file_io
@@ -94,6 +95,8 @@ def main(train_folder, test_file, job_dir):
 
     for (x, y) in gen:
         print(y[:,65])
+
+        plt.imshow(x[0])
         break
 
     model.fit_generator(gen, steps_per_epoch=10)
