@@ -15,6 +15,8 @@ from keras.applications.vgg16 import VGG16
 import sklearn
 import argparse
 import os
+import matplotlib.pyplot as plt
+import PI
 
 import json
 from tensorflow.python.lib.io import file_io
@@ -73,28 +75,46 @@ def main(train_folder, test_file, job_dir):
     if os.path.isdir('../data'):
         data_dir = '../data'
     else:
-        data_dir = 'gs://imaterialist_challenge_data/'
+        data_dir = 'gs://imaterialist_challenge_data'
 
-    data = gen.flow_from_directory(data_dir, shuffle=False, classes=['train'])
+    def generator(subdir, batch_size):
+        file_names = np.array(os.listdir(subdir))
+
+        data = np.array(list(zip(file_names, labels)))
+
+        while True:
+            np.random.shuffle(data)
+            for fn in data:
+                return
 
     # labels = {d["imageId"]: d["labelId"] for d in json.loads('train.json')["annotations"]}
 
     def label(fn):
         labels = fn.split('[')[1].split(']')[0].split(', ')
-        labels = np.array([int(l) for l in labels]) - 1 # LOOK! WE SUBTRACT ONE! ALL LABELS ARE OFF BY ONE! e.g., 227 is actually 228.
-        one_hot_labels = np.zeros((LABELS))
+        # LOOK! WE SUBTRACT ONE! ALL LABELS ARE OFF BY ONE! e.g., 227 is actually 228.
+        labels = np.array([int(l) for l in labels]) - 1
+        one_hot_labels = np.zeros((LABELS), dtype=bool)
         one_hot_labels[labels] = 1
         return one_hot_labels
+
+    # def generate(batch_size):
+    #     while True:
+    #         for name in os.walk(data_dir + '/train'):
+
 
     def labels(gen):
         idx = gen.batch_index * gen.batch_size
         return np.array([label(fn) for fn in gen.filenames[idx : idx + gen.batch_size]])
 
-    gen = ((x, labels(data)) for (x, _) in data)
+    # gen = ((x, labels(data)) for (x, _) in data)
 
-    for (x, y) in gen:
-        print(y[:,65])
-        break
+    gen = generator(data_dir + '/train', 32)
+
+    # for (x, y) in gen:
+    #     for (img, l) in zip(x, y):
+    #         if all(l[np.array([190, 106, 53, 137, 153, 74, 164, 138]) - 1]):
+    #             plt.imshow(img)
+    #             plt.show()
 
     model.fit_generator(gen, steps_per_epoch=10)
     print('Test score:', score)
