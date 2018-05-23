@@ -16,6 +16,16 @@ import sklearn
 import argparse
 import os
 import matplotlib.pyplot as plt
+from PIL import Image
+
+for _,_,im_names in os.walk('./res/train'):
+    for im_name in im_names:
+        with Image.open('./res/train/'+im_name) as im:
+            i += 1
+            print(i, end='\r')
+            im = modify(im, 0.05)
+            im = autocrop(im)
+            im = fixsize(im, 512)
 
 import json
 from tensorflow.python.lib.io import file_io
@@ -78,13 +88,33 @@ def main(train_folder, test_file, job_dir):
 
     def generator(subdir, batch_size):
         file_names = np.array(os.listdir(subdir))
-
-        data = np.array(list(zip(file_names, labels)))
+        desired_size = 256
+        i = 0
+        batch = np.zeros((batch_size, desired_size, desired_size, 3))
+        labels = np.zeros((batch_size, LABELS))
 
         while True:
-            np.random.shuffle(data)
-            for fn in data:
-                return
+            for im_name in file_names:
+                with Image.open(subdir+'/'+im_name) as im:
+                    old_size = im.size
+                    ratio = float(desired_size)/max(old_size)
+                    new_size = tuple([int(x*ratio) for x in old_size])
+                    im = im.resize(new_size, Image.ANTIALIAS)
+                    new_im = Image.new("RGB", (desired_size, desired_size))
+                    new_im.paste(im, ((desired_size-new_size[0])//2,
+                    (desired_size-new_size[1])//2))
+
+                    batch[i] = new_im
+                    labels[i] = label(im_name)
+                    if i == batch_size-1:
+                        yield batch
+                        i = 0
+                    else:
+                        i += 1
+                    # im = modify(im, 0.05)
+                    # im = autocrop(im)
+                    # im = fixsize(im, 512)
+                    yield batch, labels
 
     # labels = {d["imageId"]: d["labelId"] for d in json.loads('train.json')["annotations"]}
 
