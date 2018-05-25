@@ -99,19 +99,19 @@ def create_model():
 
 
 dirname, filename = os.path.split(os.path.abspath(__file__))
-local_dir = os.path.join(dirname, '../data')
+local_dir = os.path.join(dirname, '../../data')
 if os.path.isdir(local_dir):
     data_dir = local_dir
 else:
     data_dir = 'gs://fashiondataset'
 
 with open(data_dir + '/train.json') as json_data:
-    labels = {d['imageId']:d['labelId'] for d in json.load(json_data)['annotations']}
+    label_dict = {d['imageId']:d['labelId'] for d in json.load(json_data)['annotations']}
 
 def label(fn):
     id = fn.split('/')[-1].split('.')[0]
     # LOOK! WE SUBTRACT ONE! ALL LABELS ARE OFF BY ONE! e.g., 227 is actually 228.
-    labels = np.array([int(l) for l in labels]) - 1
+    labels = np.array([int(l) for l in label_dict[id]]) - 1
     one_hot_labels = np.zeros((LABELS), dtype=bool)
     one_hot_labels[labels] = 1
     return one_hot_labels
@@ -167,7 +167,7 @@ def main(train_folder, test_file, job_dir):
     #             plt.imshow(img)
     #             plt.show()
 
-    model.fit_generator(gen, steps_per_epoch=10)
+    model.fit_generator(gen, steps_per_epoch=1, validation_data=generator(data_dir + '/test', 32))
     print('Test score:', score)
     print('Test accuracy:', accuracy)
 
