@@ -32,8 +32,8 @@ from tensorflow.python.lib.io import file_io
 
 LABELS = 228
 
-import numpy as np
 from keras.callbacks import Callback
+from keras import callbacks as cb
 from sklearn.metrics import confusion_matrix, f1_score, precision_score, recall_score
 
 class Metrics(Callback):
@@ -42,8 +42,9 @@ class Metrics(Callback):
         self.val_recalls = []
         self.val_precisions = []
     def on_epoch_end(self, epoch, logs={}):
-        val_predict = (np.asarray(self.model.predict(self.model.validation_data[0]))).round()
-        val_targ = self.model.validation_data[1]
+        val_x, val_y = zip(*self.validation_generator)
+        val_predict = (np.asarray(val_x)).round()
+        val_targ = nparray(val_y)
         _val_f1 = f1_score(val_targ, val_predict, average='micro')
         _val_recall = recall_score(val_targ, val_predict)
         _val_precision = precision_score(val_targ, val_predict)
@@ -99,14 +100,16 @@ def create_model():
 
 dirname, filename = os.path.split(os.path.abspath(__file__))
 local_dir = os.path.join(dirname, '../../data')
-if os.path.isdir(local_dir):
+local = os.path.isdir(local_dir)
+
+if local:
     data_dir = local_dir
 else:
     data_dir = 'gs://fashiondataset'
 
 print(data_dir)
 
-with open(data_dir + '/train.json') as json_data:
+with file_io.FileIO(data_dir + '/train.json', mode='r') as json_data:
     label_dict = {d['imageId']:d['labelId'] for d in json.load(json_data)['annotations']}
 
 def label(fn):
@@ -119,7 +122,8 @@ def label(fn):
 
 def read_image(arg):
     desired_size, subdir, im_name = arg
-    with Image.open(subdir+'/'+im_name) as im:
+    with file_io.FileIO(subdir + '/' + im_name, mode='rb') as im_data:
+        im = Image.open(im_data)
         old_size = im.size
         ratio = float(desired_size)/max(old_size)
         new_size = tuple([int(x*ratio) for x in old_size])
@@ -132,8 +136,6 @@ def read_image(arg):
 
 def main(train_folder, test_file, job_dir):
     model = create_model()
-    # model.fit(X_train, y_train, nb_epoch=1, batch_size=32, verbose=2)
-    gen = image.ImageDataGenerator()
 
     def generator(subdir, batch_size):
         desired_size = 256
@@ -154,15 +156,18 @@ def main(train_folder, test_file, job_dir):
 
     gen = generator(data_dir + '/train', 32)
 
+    # model.fit_generator(gen, steps_per_epoch=1, validation_data=generator(data_dir + '/val', 32), validation_steps=1, callbacks=[cb.EarlyStopping(), cb.ModelCheckpoint('model.h5')])
+
     # TODO: Kaggle competitions accept different submission formats, so saving the predictions is up to you
 
     # Save model weights
     model.save('model.h5')
 
     # Save model on google storage
-    with file_io.FileIO('model.h5', mode='rb') as input_f:
-        with file_io.FileIO('model.h5', mode='wb+') as output_f:
-            output_f.write(input_f.read())
+    if not local:
+        with file_io.FileIO('model.h5', mode='rb') as input_f:
+            with file_io.FileIO(data_dir + 'model.h5', mode='wb+') as output_f:
+                output_f.write(input_f.read())
 
 if __name__ == '__main__':
     """

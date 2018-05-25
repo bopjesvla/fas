@@ -1,5 +1,5 @@
 trainingInput:
   scaleTier: CUSTOM
-  masterType: standard_gpu
-  workerType: standard_gpu
-  parameterServerType: standard_gpu
+  masterType: standard_p100
+  workerType: standard_p100
+  parameterServerType: standard_p100
