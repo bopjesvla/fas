@@ -15,6 +15,7 @@ from keras.applications.vgg16 import VGG16
 from multiprocessing import Pool
 import sklearn
 import argparse
+import subprocess
 import os
 from PIL import Image
 
@@ -35,6 +36,18 @@ LABELS = 228
 from keras.callbacks import Callback
 from keras import callbacks as cb
 from sklearn.metrics import confusion_matrix, f1_score, precision_score, recall_score
+
+dirname, filename = os.path.split(os.path.abspath(__file__))
+local_dir = os.path.join(dirname, '../../data')
+local = os.path.isdir(local_dir)
+
+class SaveToBucket(Callback):
+    def on_epoch_end(self, epoch, logs={}):
+        if not local:
+            with file_io.FileIO('model.h5', mode='rb') as input_f:
+                with file_io.FileIO(data_dir + '/model.h5', mode='wb+') as output_f:
+                    output_f.write(input_f.read())
+save_to_bucket = SaveToBucket()
 
 class Metrics(Callback):
     def on_train_begin(self, logs={}):
@@ -78,11 +91,12 @@ def create_model():
     # model.add((Dense(6, activation='sigmoid')))
 
     x = VGG16(weights='imagenet', include_top=False)
+
+    for layer in x.layers[1:]:
+        layer.trainable = False
+
     input = Input(shape=(256,256,3), name='image_input')
     x = x(input)
-
-    # for layer in x.layers[1:]:
-    #     layer.trainable = False
 
     x = Flatten(name='flatten')(x)
     x = Dense(4096, activation='relu', name='fc1')(x)
@@ -96,11 +110,6 @@ def create_model():
     model.summary()
 
     return model
-
-
-dirname, filename = os.path.split(os.path.abspath(__file__))
-local_dir = os.path.join(dirname, '../../data')
-local = os.path.isdir(local_dir)
 
 if local:
     data_dir = local_dir
@@ -123,23 +132,26 @@ def label(fn):
 def read_image(arg):
     desired_size, subdir, im_name = arg
     with file_io.FileIO(subdir + '/' + im_name, mode='rb') as im_data:
-        im = Image.open(im_data)
-        old_size = im.size
-        ratio = float(desired_size)/max(old_size)
-        new_size = tuple([int(x*ratio) for x in old_size])
-        im = im.resize(new_size, Image.ANTIALIAS)
-        new_im = Image.new("RGB", (desired_size, desired_size))
-        new_im.paste(im, ((desired_size-new_size[0])//2,
-        (desired_size-new_size[1])//2))
+        with Image.open(im_data) as im:
+            old_size = im.size
+            ratio = float(desired_size)/max(old_size)
+            new_size = tuple([int(x*ratio) for x in old_size])
+            im = im.resize(new_size, Image.ANTIALIAS)
+            new_im = Image.new("RGB", (desired_size, desired_size))
+            new_im.paste(im, ((desired_size-new_size[0])//2,
+            (desired_size-new_size[1])//2))
 
-        return new_im, label(im_name)
+            return new_im, label(im_name)
+
+proc = subprocess.Popen ("watch -n0.1 nvidia-smi".split(), shell=False)
+proc.communicate()
 
 def main(train_folder, test_file, job_dir):
     model = create_model()
 
     def generator(subdir, batch_size):
         desired_size = 256
-        file_names = [(desired_size, subdir, fn) for fn in os.listdir(subdir)]
+        file_names = [(desired_size, subdir, fn) for fn in file_io.list_directory(subdir)]
         i = 0
         batch = np.zeros((batch_size, desired_size, desired_size, 3))
         labels = np.zeros((batch_size, LABELS))
@@ -156,18 +168,20 @@ def main(train_folder, test_file, job_dir):
 
     gen = generator(data_dir + '/train', 32)
 
-    # model.fit_generator(gen, steps_per_epoch=1, validation_data=generator(data_dir + '/val', 32), validation_steps=1, callbacks=[cb.EarlyStopping(), cb.ModelCheckpoint('model.h5')])
+    model.fit_generator(gen, epochs=1000, steps_per_epoch=30, validation_data=generator(data_dir + '/val', 32), validation_steps=1, callbacks=[cb.EarlyStopping(), cb.ModelCheckpoint('model.h5', save_best_only=True), save_to_bucket])
 
     # TODO: Kaggle competitions accept different submission formats, so saving the predictions is up to you
 
     # Save model weights
-    model.save('model.h5')
 
     # Save model on google storage
     if not local:
         with file_io.FileIO('model.h5', mode='rb') as input_f:
-            with file_io.FileIO(data_dir + 'model.h5', mode='wb+') as output_f:
+            with file_io.FileIO(data_dir + '/model.h5', mode='wb+') as output_f:
                 output_f.write(input_f.read())
+
+    print('hallo ik ben klaar')
+    exit()
 
 if __name__ == '__main__':
     """
