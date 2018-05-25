@@ -16,6 +16,10 @@ F_sigma = 0.25
 N  = 228
 max_imageId = 99999
 
+tries = [0.]
+while tries[-1] < 1:
+    tries.append(tries[-1]+0.01)
+
 if False:
     with open('./res/DATASET/train.json','r') as json_data:
         data = json.load(json_data)
@@ -78,20 +82,44 @@ for labelId_int in range(1,N+1):
     labelId = str(labelId_int)
 
     best = 0.
-    F1   = 0.
-    t    = 0.
-    while t < 1.:
-        print(labelId + ' - t: ' + "%.2f"%t + '                    ',end='\r')
-        F1_ = F1_score(t,labelId)
-        if F1_ > F1:
-            best = t
-            F1   = F1_
-        t += dt
+    search_list = tries
+    while True:
+        if len(search_list) == 1:
+            best = search_list[0]
+            break
+        if len(search_list)==2:
+            F1_1 = F1_score( search_list[0], labelId)
+            F1_2 = F1_score( search_list[1], labelId)
+            if F1_1 > F1_2:
+                best = search_list[0]
+            else:
+                best = search_list[1]
+            break
+        else:
+            print(search_list[int(len(search_list)/2)-1],end='\r')
+            F1_1 = F1_score( search_list[int(len(search_list)/2)-1], labelId)
+            F1_2 = F1_score( search_list[int(len(search_list)/2)],labelId)
+            if F1_1 > F1_2:
+                search_list = search_list[:int(len(search_list)/2)]
+            else:
+                search_list = search_list[int(len(search_list)/2):]
+
+    #best = 0.
+    #F1   = 0.
+    #t    = 0.
+    #while t < 1.:
+    #    print(labelId + ' - t: ' + "%.2f"%t + '                    ',end='\r')
+    #    F1_ = F1_score(t,labelId)
+    #    if F1_ > F1:
+    #        best = t
+    #        F1   = F1_
+    #    t += dt
 
     t = best
-    for i in range(0,100):
+    F1 = F1_score(best,labelId)
+    for i in range(0,0):
         print(labelId + " - t: %.2f "%t + "."*(i%25) + " "*(25-(i%25)),end='\r')
-        t_ = t_ + np.random.normal(0,0.01)
+        t_ = t + np.random.normal(0,0.01)
         F1_ = F1_score(t_,labelId)
         if F1_ > F1:
             best = t_
