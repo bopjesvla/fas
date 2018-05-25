@@ -16,7 +16,6 @@ from multiprocessing import Pool
 import sklearn
 import argparse
 import os
-import matplotlib.pyplot as plt
 from PIL import Image
 
 # for _,_,im_names in os.walk('./res/train'):
@@ -105,6 +104,8 @@ if os.path.isdir(local_dir):
 else:
     data_dir = 'gs://fashiondataset'
 
+print(data_dir)
+
 with open(data_dir + '/train.json') as json_data:
     label_dict = {d['imageId']:d['labelId'] for d in json.load(json_data)['annotations']}
 
@@ -151,37 +152,16 @@ def main(train_folder, test_file, job_dir):
                 else:
                     i += 1
 
-    # labels = {d["imageId"]: d["labelId"] for d in json.loads('train.json')["annotations"]}
-
-    # def generate(batch_size):
-    #     while True:
-    #         for name in os.walk(data_dir + '/train'):
-
-    # gen = ((x, labels(data)) for (x, _) in data)
-
     gen = generator(data_dir + '/train', 32)
 
-    # for (x, y) in gen:
-    #     for (img, l) in zip(x, y):
-    #         if all(l[np.array([190, 106, 53, 137, 153, 74, 164, 138]) - 1]):
-    #             plt.imshow(img)
-    #             plt.show()
-
-    model.fit_generator(gen, steps_per_epoch=1, validation_data=generator(data_dir + '/test', 32))
-    print('Test score:', score)
-    print('Test accuracy:', accuracy)
-
-    X_test = load_data(test_file)
-
-    predictions = model.predict(X_test)
     # TODO: Kaggle competitions accept different submission formats, so saving the predictions is up to you
 
     # Save model weights
     model.save('model.h5')
 
     # Save model on google storage
-    with file_io.FileIO('model.h5', mode='r') as input_f:
-        with file_io.FileIO('./tmp/model.h5', mode='w+') as output_f:
+    with file_io.FileIO('model.h5', mode='rb') as input_f:
+        with file_io.FileIO('model.h5', mode='wb+') as output_f:
             output_f.write(input_f.read())
 
 if __name__ == '__main__':
