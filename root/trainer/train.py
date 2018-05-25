@@ -143,8 +143,8 @@ def read_image(arg):
 
             return new_im, label(im_name)
 
-proc = subprocess.Popen ("watch -n0.1 nvidia-smi".split(), shell=False)
-proc.communicate()
+# proc = subprocess.Popen ("watch -n0.1 nvidia-smi".split(), shell=False)
+# proc.communicate()
 
 def main(train_folder, test_file, job_dir):
     model = create_model()
@@ -152,6 +152,7 @@ def main(train_folder, test_file, job_dir):
     def generator(subdir, batch_size):
         desired_size = 256
         file_names = [(desired_size, subdir, fn) for fn in file_io.list_directory(subdir)]
+        np.random.shuffle(file_names)
         i = 0
         batch = np.zeros((batch_size, desired_size, desired_size, 3))
         labels = np.zeros((batch_size, LABELS))
