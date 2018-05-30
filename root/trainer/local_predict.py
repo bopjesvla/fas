@@ -10,8 +10,8 @@ data_dir = os.path.join(dirname, '../../data')
 test_dir = data_dir + '/test'
 files = file_io.list_directory(test_dir)
 
-# model = keras.models.load_model(data_dir + '/model.h5')
-model = create_model()
+model = keras.models.load_model(data_dir + '/model.h5')
+# model = create_model()
 
 gen = np.array([np.asarray(read_image((256, test_dir, fn), train=False)) for fn in files])
 scores = model.predict(gen, steps=len(files))
