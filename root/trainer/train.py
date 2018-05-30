@@ -101,7 +101,7 @@ def create_model(base_net):
     for layer in x.layers[1:]:
         layer.trainable = False
 
-    input = Input(shape=(256,256,3), name='image_input')
+    input = Input(shape=(224,224,3), name='image_input')
     x = x(input)
 
     x = Flatten(name='flatten')(x)
@@ -163,10 +163,12 @@ def read_image(arg, train=True):
 # proc.communicate()
 
 def main(train_folder, test_file, job_dir):
-    model = create_model('resnet')
+    model_name = 'resnet' 
+    
+    model = create_model(model_name)
 
     def generator(subdir, batch_size):
-        desired_size = 256
+        desired_size = 224
         file_names = [(desired_size, subdir, fn) for fn in file_io.list_directory(subdir)]
         np.random.shuffle(file_names)
         i = 0
@@ -188,7 +190,7 @@ def main(train_folder, test_file, job_dir):
     gen = generator(data_dir + '/train', 32)
 
     timeNow = time.strftime("%e%m-%H%M%S")
-    model.fit_generator(gen, epochs=1000, steps_per_epoch=600, validation_data=generator(data_dir + '/val', 32), validation_steps=1, callbacks=[cb.ModelCheckpoint('model.h5', save_best_only=True), cb.TensorBoard(log_dir=data_dir+'/logs/'+timeNow, batch_size=32) ,save_to_bucket])
+    model.fit_generator(gen, epochs=1000, steps_per_epoch=600, validation_data=generator(data_dir + '/val', 32), validation_steps=1, callbacks=[cb.ModelCheckpoint(model_name+'.h5', save_best_only=True), cb.TensorBoard(log_dir=data_dir+'/logs/'+timeNow, batch_size=32) ,save_to_bucket])
 
     # TODO: Kaggle competitions accept different submission formats, so saving the predictions is up to you
 
@@ -196,8 +198,8 @@ def main(train_folder, test_file, job_dir):
 
     # Save model on google storage
     if not local:
-        with file_io.FileIO('model.h5', mode='rb') as input_f:
-            with file_io.FileIO(data_dir + '/model.h5', mode='wb+') as output_f:
+        with file_io.FileIO(model_name+'.h5', mode='rb') as input_f:
+            with file_io.FileIO(data_dir + '/'+model_name+'.h5', mode='wb+') as output_f:
                 output_f.write(input_f.read())
 
     print('hallo ik ben klaar')
