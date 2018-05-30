@@ -12,6 +12,7 @@ from sklearn.model_selection import train_test_split
 from keras.preprocessing import sequence, image
 from keras.applications.vgg19 import VGG19
 from keras.applications.vgg16 import VGG16
+from keras.applications.resnet50 import ResNet50
 from multiprocessing import Pool
 import sklearn
 import argparse
@@ -79,7 +80,7 @@ def load_data(path):
     return data
 
 
-def create_model():
+def create_model(base_net):
     """
     In here you can define your model
     NOTE: Since we are only saving the model weights, you cannot load model weights that do
@@ -89,9 +90,13 @@ def create_model():
     # model = Sequential()
     # model.add(Dense(42, activation='relu'))
     # model.add((Dense(6, activation='sigmoid')))
-
-    x = VGG16(weights='imagenet', include_top=False)
-
+    
+    
+    if base_net == 'vgg': 
+        x = VGG16(weights='imagenet', include_top=False)
+    elif base_net == 'resnet':
+        x = ResNet50(weights='imagenet', include_top=False)
+        
     for layer in x.layers[1:]:
         layer.trainable = False
 
@@ -157,7 +162,7 @@ def read_image(arg, train=True):
 # proc.communicate()
 
 def main(train_folder, test_file, job_dir):
-    model = create_model()
+    model = create_model('resnet')
 
     def generator(subdir, batch_size):
         desired_size = 256
