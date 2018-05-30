@@ -3,4 +3,4 @@ traindata/
 testdata/
 validationdata/
 valdata/
-*.pyc
+**/*.pyc
