@@ -35,8 +35,6 @@ for index in range(228):
             break
         counter+=1
     trainingY.append(dataLabels)
-print(len(trainingY))
-print(len(trainingY[0]))
 
 #Random generated x data
 trainingX = []
@@ -53,8 +51,6 @@ for runningOutOfNames in range(228):
             break
         counterRan+=1
     trainingX.append(dataX)
-print(len(trainingX))
-print(len(trainingX[0]))
 
 predictions=[]
 for predictLabel in range(228):
@@ -63,5 +59,11 @@ for predictLabel in range(228):
     for dataPoint in trainingX[predictLabel]:
         predSingleLabel.append(classifiers[predictLabel].predict([dataPoint]))
     predictions.append(predSingleLabel)
-print(predictions)
-
+    
+labelList=[]
+for image in range(len(predictions[0])):
+    labelsFound =[]
+    for ans in range(228):
+        if predictions[ans][image]=="yes":
+            labelsFound.append(ans+1)
+    labelList.append(labelsFound)
