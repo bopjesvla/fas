@@ -147,6 +147,7 @@ def read_image(arg, train=True):
                 else:
                     return new_im
     except Exception as e:
+        print(e)
         print("BAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD IMAGE: ", im_name)
         if train:
             return -1, -1
