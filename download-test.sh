@@ -1,2 +1,2 @@
 . ~/.bashrc
-gsutil cp -r gs://fashiondataset/test data/test
+gsutil -m cp -r gs://fashiondataset/test data/
