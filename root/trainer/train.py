@@ -39,7 +39,7 @@ from keras import callbacks as cb
 from sklearn.metrics import confusion_matrix, f1_score, precision_score, recall_score
 
 dirname, filename = os.path.split(os.path.abspath(__file__))
-local_dir = os.path.join(dirname, '../../data')
+local_dir = os.path.join(dirname, '..', '..', 'data')
 local = os.path.isdir(local_dir)
 
 class SaveToBucket(Callback):
