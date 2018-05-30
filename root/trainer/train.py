@@ -21,6 +21,9 @@ import os
 from PIL import Image
 import time
 
+MODEL_NAME = 'vgg'
+
+
 # for _,_,im_names in os.walk('./res/train'):
 #     for im_name in im_names:
 #         with Image.open('./res/train/'+im_name) as im:
@@ -46,8 +49,8 @@ local = os.path.isdir(local_dir)
 class SaveToBucket(Callback):
     def on_epoch_end(self, epoch, logs={}):
         if not local:
-            with file_io.FileIO('model.h5', mode='rb') as input_f:
-                with file_io.FileIO(data_dir + '/model.h5', mode='wb+') as output_f:
+            with file_io.FileIO(MODEL_NAME+'.h5', mode='rb') as input_f:
+                with file_io.FileIO(data_dir + '/'+MODEL_NAME+'.h5', mode='wb+') as output_f:
                     output_f.write(input_f.read())
 save_to_bucket = SaveToBucket()
 
@@ -59,7 +62,7 @@ class Metrics(Callback):
     def on_epoch_end(self, epoch, logs={}):
         val_x, val_y = zip(*self.validation_generator)
         val_predict = (np.asarray(val_x)).round()
-        val_targ = nparray(val_y)
+        val_targ = np.array(val_y)
         _val_f1 = f1_score(val_targ, val_predict, average='micro')
         _val_recall = recall_score(val_targ, val_predict)
         _val_precision = precision_score(val_targ, val_predict)
@@ -81,7 +84,7 @@ def load_data(path):
     return data
 
 
-def create_model(base_net):
+def create_model():
     """
     In here you can define your model
     NOTE: Since we are only saving the model weights, you cannot load model weights that do
@@ -93,9 +96,9 @@ def create_model(base_net):
     # model.add((Dense(6, activation='sigmoid')))
     
     
-    if base_net == 'vgg': 
+    if MODEL_NAME == 'vgg': 
         x = VGG16(weights='imagenet', include_top=False)
-    elif base_net == 'resnet':
+    elif MODEL_NAME == 'resnet':
         x = ResNet50(weights='imagenet', include_top=False)
         
     for layer in x.layers[1:]:
@@ -163,10 +166,8 @@ def read_image(arg, train=True):
 # proc = subprocess.Popen ("watch -n0.1 nvidia-smi".split(), shell=False)
 # proc.communicate()
 
-def main(train_folder, test_file, job_dir):
-    model_name = 'resnet' 
-    
-    model = create_model(model_name)
+def main(train_folder, test_file, job_dir):    
+    model = create_model()
 
     def generator(subdir, batch_size):
         desired_size = 224
@@ -191,7 +192,11 @@ def main(train_folder, test_file, job_dir):
     gen = generator(data_dir + '/train', 32)
 
     timeNow = time.strftime("%e%m-%H%M%S")
-    model.fit_generator(gen, epochs=1000, steps_per_epoch=600, validation_data=generator(data_dir + '/val', 32), validation_steps=1, callbacks=[cb.ModelCheckpoint(model_name+'.h5', save_best_only=True), cb.TensorBoard(log_dir=data_dir+'/logs/'+timeNow, batch_size=32) ,save_to_bucket])
+    
+    save_to_bucket = SaveToBucket()
+
+    
+    model.fit_generator(gen, epochs=1000, steps_per_epoch=600, validation_data=generator(data_dir + '/val', 32), validation_steps=1, callbacks=[cb.ModelCheckpoint(MODEL_NAME+'.h5', save_best_only=True), cb.TensorBoard(log_dir=data_dir+'/logs/'+timeNow, batch_size=32) ,save_to_bucket])
 
     # TODO: Kaggle competitions accept different submission formats, so saving the predictions is up to you
 
@@ -199,8 +204,8 @@ def main(train_folder, test_file, job_dir):
 
     # Save model on google storage
     if not local:
-        with file_io.FileIO(model_name+'.h5', mode='rb') as input_f:
-            with file_io.FileIO(data_dir + '/'+model_name+'.h5', mode='wb+') as output_f:
+        with file_io.FileIO(MODEL_NAME+'.h5', mode='rb') as input_f:
+            with file_io.FileIO(data_dir + '/'+MODEL_NAME+'.h5', mode='wb+') as output_f:
                 output_f.write(input_f.read())
 
     print('hallo ik ben klaar')
