@@ -19,6 +19,7 @@ import argparse
 import subprocess
 import os
 from PIL import Image
+import time
 
 # for _,_,im_names in os.walk('./res/train'):
 #     for im_name in im_names:
@@ -186,7 +187,8 @@ def main(train_folder, test_file, job_dir):
 
     gen = generator(data_dir + '/train', 32)
 
-    model.fit_generator(gen, epochs=1000, steps_per_epoch=6000, validation_data=generator(data_dir + '/val', 32), validation_steps=1, callbacks=[cb.ModelCheckpoint('model.h5', save_best_only=True), save_to_bucket])
+    timeNow = time.strftime("%e%m-%H%M%S")
+    model.fit_generator(gen, epochs=1000, steps_per_epoch=600, validation_data=generator(data_dir + '/val', 32), validation_steps=1, callbacks=[cb.ModelCheckpoint('model.h5', save_best_only=True), cb.TensorBoard(log_dir=data_dir+'/logs/'+timeNow, batch_size=32) ,save_to_bucket])
 
     # TODO: Kaggle competitions accept different submission formats, so saving the predictions is up to you
 
