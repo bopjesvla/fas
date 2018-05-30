@@ -130,19 +130,29 @@ def label(fn):
     one_hot_labels[labels] = 1
     return one_hot_labels
 
-def read_image(arg):
+def read_image(arg, train=True):
     desired_size, subdir, im_name = arg
-    with file_io.FileIO(subdir + '/' + im_name, mode='rb') as im_data:
-        with Image.open(im_data) as im:
-            old_size = im.size
-            ratio = float(desired_size)/max(old_size)
-            new_size = tuple([int(x*ratio) for x in old_size])
-            im = im.resize(new_size, Image.ANTIALIAS)
-            new_im = Image.new("RGB", (desired_size, desired_size))
-            new_im.paste(im, ((desired_size-new_size[0])//2,
-            (desired_size-new_size[1])//2))
+    try:
+        with file_io.FileIO(subdir + '/' + im_name, mode='rb') as im_data:
+            with Image.open(im_data) as im:
+                old_size = im.size
+                ratio = float(desired_size)/max(old_size)
+                new_size = tuple([int(x*ratio) for x in old_size])
+                im = im.resize(new_size, Image.ANTIALIAS)
+                new_im = Image.new("RGB", (desired_size, desired_size))
+                new_im.paste(im, ((desired_size-new_size[0])//2,
+                (desired_size-new_size[1])//2))
 
-            return new_im, label(im_name)
+                if train:
+                    return new_im, label(im_name)
+                else:
+                    return new_im
+    except Exception as e:
+        print("BAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD IMAGE: ", im_name)
+        if train:
+            return -1, -1
+        else:
+            return np.zeros((desired_size, desired_size, 3))
 
 # proc = subprocess.Popen ("watch -n0.1 nvidia-smi".split(), shell=False)
 # proc.communicate()
@@ -161,6 +171,8 @@ def main(train_folder, test_file, job_dir):
 
         while True:
             for im, label in p.imap_unordered(read_image, file_names):
+                if im == -1:
+                    continue
                 batch[i], labels[i] = im, label
                 if i == batch_size-1:
                     yield batch, labels
@@ -171,7 +183,7 @@ def main(train_folder, test_file, job_dir):
     gen = generator(data_dir + '/train', 32)
 
     timeNow = time.strftime("%e%m-%H%M%S")
-    model.fit_generator(gen, epochs=1000, steps_per_epoch=30, validation_data=generator(data_dir + '/val', 32), validation_steps=1, callbacks=[cb.EarlyStopping(), cb.ModelCheckpoint('model.h5', save_best_only=True), cb.TensorBoard(log_dir=data_dir+'/logs/'+timeNow, batch_size=32) ,save_to_bucket])
+    model.fit_generator(gen, epochs=1000, steps_per_epoch=600, validation_data=generator(data_dir + '/val', 32), validation_steps=1, callbacks=[cb.ModelCheckpoint('model.h5', save_best_only=True), cb.TensorBoard(log_dir=data_dir+'/logs/'+timeNow, batch_size=32) ,save_to_bucket])
 
     # TODO: Kaggle competitions accept different submission formats, so saving the predictions is up to you
 
