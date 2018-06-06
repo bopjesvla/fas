@@ -7,7 +7,7 @@ from __future__ import absolute_import
 import numpy as np
 import pandas as pd
 from keras.models import Sequential, Model
-from keras.layers import Dense, Embedding, LSTM, Input, Flatten, GlobalAveragePooling2D
+from keras.layers import Dense, Embedding, LSTM, Input, Flatten, GlobalAveragePooling2D, AveragePooling2D
 from sklearn.model_selection import train_test_split
 from keras.preprocessing import sequence, image
 from keras.applications.vgg19 import VGG19
@@ -20,8 +20,9 @@ import subprocess
 import os
 from PIL import Image
 import time
+import sys
 
-MODEL_NAME = 'vgg'
+MODEL_NAME = 'resnet'
 
 
 # for _,_,im_names in os.walk('./res/train'):
@@ -95,7 +96,7 @@ def create_model():
     # model.add(Dense(42, activation='relu'))
     # model.add((Dense(6, activation='sigmoid')))
     
-    
+    """
     if MODEL_NAME == 'vgg': 
         x = VGG16(weights='imagenet', include_top=False)
     elif MODEL_NAME == 'resnet':
@@ -106,11 +107,33 @@ def create_model():
 
     input = Input(shape=(224,224,3), name='image_input')
     x = x(input)
-
     x = Flatten(name='flatten')(x)
-    x = Dense(4096, activation='relu', name='fc1')(x)
-    x = Dense(4096, activation='relu', name='fc2')(x)
-    x = Dense(LABELS, activation='sigmoid', name='predictions')(x)
+    """
+
+    x = ResNet50(weights='imagenet', include_top=False)
+
+
+    #while( x.layers[-1].get_config()['name'] != "activation_40" ):
+    #    x.layers.pop()
+
+    for layer in x.layers[1:]:
+        layer.trainable = False
+        if layer.get_config()['name'] == 'activation_40':
+            break
+        
+        
+
+    input = Input(shape=(224,224,3), name='image_input')
+    x = x(input)
+    #x = AveragePooling2D(pool_size=(1,1),name='avg_pool')(x)
+    x = Flatten(name='flatten')(x)
+    x = Dense(512, activation='relu', name='fc1')(x)
+    x = Dense(LABELS, activation='sigmoid',name='predictions')(x)
+    
+    
+    #x = Dense(4096, activation='relu', name='fc1')(x)
+    #x = Dense(4096, activation='relu', name='fc2')(x)
+    #x = Dense(LABELS, activation='sigmoid', name='predictions')(x)
 
     model = Model(input=input, output=x)
 
