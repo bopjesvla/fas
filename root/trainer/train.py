@@ -13,6 +13,7 @@ from keras.preprocessing import sequence, image
 from keras.applications.vgg19 import VGG19
 from keras.applications.vgg16 import VGG16
 from keras.applications.resnet50 import ResNet50
+from keras import backend as K
 from multiprocessing import Pool
 import sklearn
 import argparse
@@ -38,6 +39,7 @@ LABELS = 228
 from keras.callbacks import Callback
 from keras import callbacks as cb
 from sklearn.metrics import confusion_matrix, f1_score, precision_score, recall_score
+
 
 dirname, filename = os.path.split(os.path.abspath(__file__))
 local_dir = os.path.join(dirname, '..', '..', 'data')
@@ -188,7 +190,21 @@ def main(train_folder, test_file, job_dir):
     gen = generator(data_dir + '/train', 32)
 
     timeNow = time.strftime("%e%m-%H%M%S")
-    model.fit_generator(gen, epochs=1000, steps_per_epoch=600, validation_data=generator(data_dir + '/val', 32), validation_steps=1, callbacks=[cb.ModelCheckpoint('model.h5', save_best_only=True), cb.TensorBoard(log_dir=data_dir+'/logs/'+timeNow, batch_size=32) ,save_to_bucket])
+
+    # --- CALLBACK TENSORBAORD ----
+    #print layers:
+    #sess = K.get_session()
+    #[print(n.name) for n in sess.graph.as_graph_def().node]
+
+    embeddings_list = ['resnet50/activation_26/Relu', 'resnet50/activation_47/Relu', 'resnet50/activation_49/Relu', 'fc2/Relu', 'fc1/Relu']
+
+
+    # CONTINUE WITH THIS:
+    # Cant set histogram=1 because it expects validation data instead of a generator..
+
+
+
+    model.fit_generator(gen, epochs=3, steps_per_epoch=1, validation_data=generator(data_dir + '/val', 32), validation_steps=1, callbacks=[cb.ModelCheckpoint('model.h5', save_best_only=True), cb.TensorBoard(log_dir=data_dir+'/logs/'+timeNow, batch_size=32, histogram_freq=1, embeddings_freq=0, embeddings_layer_names=embeddings_list, write_images=True) ,save_to_bucket])
 
     # TODO: Kaggle competitions accept different submission formats, so saving the predictions is up to you
 
