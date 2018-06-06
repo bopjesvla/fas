@@ -3,4 +3,5 @@ setup.py
 trainer/__init__.py
 trainer/local_predict.py
 trainer/predict.py
+trainer/threshold.py
 trainer/train.py

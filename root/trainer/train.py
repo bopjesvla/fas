@@ -6,10 +6,11 @@
 from __future__ import absolute_import
 import numpy as np
 import pandas as pd
-from keras.models import Sequential, Model
+from keras.models import Sequential, Model, load_model
 from keras.layers import Dense, Embedding, LSTM, Input, Flatten, GlobalAveragePooling2D
 from sklearn.model_selection import train_test_split
 from keras.preprocessing import sequence, image
+from keras.optimizers import RMSprop
 from keras.applications.vgg19 import VGG19
 from keras.applications.vgg16 import VGG16
 from keras.applications.resnet50 import ResNet50
@@ -21,7 +22,8 @@ import os
 from PIL import Image
 import time
 
-MODEL_NAME = 'vgg'
+MODEL_NAME = 'resnet'
+CONTINUE_TRAINING = True
 
 
 # for _,_,im_names in os.walk('./res/train'):
@@ -95,6 +97,11 @@ def create_model():
     # model.add(Dense(42, activation='relu'))
     # model.add((Dense(6, activation='sigmoid')))
     
+    if CONTINUE_TRAINING:
+        file_io.copy(data_dir + '/' + MODEL_NAME + '.h5', 'cnt.h5')
+        model = load_model('cnt.h5')
+        model.compile(loss='binary_crossentropy', optimizer=RMSprop(lr=0.0001), metrics=['accuracy'])
+        return model
     
     if MODEL_NAME == 'vgg': 
         x = VGG16(weights='imagenet', include_top=False)
@@ -114,7 +121,7 @@ def create_model():
 
     model = Model(input=input, output=x)
 
-    model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
+    model.compile(loss='binary_crossentropy', optimizer=RMSprop(lr=0.0001), metrics=['accuracy'])
 
     model.summary()
 
