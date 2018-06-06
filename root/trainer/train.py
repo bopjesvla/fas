@@ -6,10 +6,11 @@
 from __future__ import absolute_import
 import numpy as np
 import pandas as pd
-from keras.models import Sequential, Model
+from keras.models import Sequential, Model, load_model
 from keras.layers import Dense, Embedding, LSTM, Input, Flatten, GlobalAveragePooling2D
 from sklearn.model_selection import train_test_split
 from keras.preprocessing import sequence, image
+from keras.optimizers import RMSprop
 from keras.applications.vgg19 import VGG19
 from keras.applications.vgg16 import VGG16
 from keras.applications.resnet50 import ResNet50
@@ -21,6 +22,11 @@ import subprocess
 import os
 from PIL import Image
 import time
+import sys
+
+MODEL_NAME = 'resnet'
+CONTINUE_TRAINING = False
+
 
 # for _,_,im_names in os.walk('./res/train'):
 #     for im_name in im_names:
@@ -48,8 +54,8 @@ local = os.path.isdir(local_dir)
 class SaveToBucket(Callback):
     def on_epoch_end(self, epoch, logs={}):
         if not local:
-            with file_io.FileIO('model.h5', mode='rb') as input_f:
-                with file_io.FileIO(data_dir + '/model.h5', mode='wb+') as output_f:
+            with file_io.FileIO(MODEL_NAME+'.h5', mode='rb') as input_f:
+                with file_io.FileIO(data_dir + '/'+MODEL_NAME+'.h5', mode='wb+') as output_f:
                     output_f.write(input_f.read())
 save_to_bucket = SaveToBucket()
 
@@ -61,7 +67,7 @@ class Metrics(Callback):
     def on_epoch_end(self, epoch, logs={}):
         val_x, val_y = zip(*self.validation_generator)
         val_predict = (np.asarray(val_x)).round()
-        val_targ = nparray(val_y)
+        val_targ = np.array(val_y)
         _val_f1 = f1_score(val_targ, val_predict, average='micro')
         _val_recall = recall_score(val_targ, val_predict)
         _val_precision = precision_score(val_targ, val_predict)
@@ -83,7 +89,7 @@ def load_data(path):
     return data
 
 
-def create_model(base_net):
+def create_model():
     """
     In here you can define your model
     NOTE: Since we are only saving the model weights, you cannot load model weights that do
@@ -94,26 +100,54 @@ def create_model(base_net):
     # model.add(Dense(42, activation='relu'))
     # model.add((Dense(6, activation='sigmoid')))
     
+    if CONTINUE_TRAINING:
+        file_io.copy(data_dir + '/' + MODEL_NAME + '.h5', 'cnt.h5')
+        model = load_model('cnt.h5')
+        model.compile(loss='binary_crossentropy', optimizer=RMSprop(lr=0.0001), metrics=['accuracy'])
+        return model
     
-    if base_net == 'vgg': 
+    """
+    if MODEL_NAME == 'vgg': 
         x = VGG16(weights='imagenet', include_top=False)
-    elif base_net == 'resnet':
+    elif MODEL_NAME == 'resnet':
         x = ResNet50(weights='imagenet', include_top=False)
         
     for layer in x.layers[1:]:
         layer.trainable = False
 
-    input = Input(shape=(256,256,3), name='image_input')
+    input = Input(shape=(224,224,3), name='image_input')
     x = x(input)
-
     x = Flatten(name='flatten')(x)
-    x = Dense(4096, activation='relu', name='fc1')(x)
-    x = Dense(4096, activation='relu', name='fc2')(x)
-    x = Dense(LABELS, activation='sigmoid', name='predictions')(x)
+    """
+
+    x = ResNet50(weights='imagenet', include_top=False)
+
+
+    #while( x.layers[-1].get_config()['name'] != "activation_40" ):
+    #    x.layers.pop()
+
+    for layer in x.layers[1:]:
+        layer.trainable = False
+        if layer.get_config()['name'] == 'activation_40':
+            break
+        
+        
+
+    input = Input(shape=(224,224,3), name='image_input')
+    x = x(input)
+    #x = AveragePooling2D(pool_size=(1,1),name='avg_pool')(x)
+    x = Flatten(name='flatten')(x)
+    x = Dense(512, activation='relu', name='fc1')(x)
+    x = Dense(LABELS, activation='sigmoid',name='predictions')(x)
+    
+    
+    #x = Dense(4096, activation='relu', name='fc1')(x)
+    #x = Dense(4096, activation='relu', name='fc2')(x)
+    #x = Dense(LABELS, activation='sigmoid', name='predictions')(x)
 
     model = Model(input=input, output=x)
 
-    model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
+    model.compile(loss='binary_crossentropy', optimizer=RMSprop(lr=0.0001), metrics=['accuracy'])
 
     model.summary()
 
@@ -155,6 +189,7 @@ def read_image(arg, train=True):
                 else:
                     return new_im
     except Exception as e:
+        print(e)
         print("BAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD IMAGE: ", im_name)
         if train:
             return -1, -1
@@ -164,11 +199,11 @@ def read_image(arg, train=True):
 # proc = subprocess.Popen ("watch -n0.1 nvidia-smi".split(), shell=False)
 # proc.communicate()
 
-def main(train_folder, test_file, job_dir):
-    model = create_model('resnet')
+def main(train_folder, test_file, job_dir):    
+    model = create_model()
 
     def generator(subdir, batch_size):
-        desired_size = 256
+        desired_size = 224
         file_names = [(desired_size, subdir, fn) for fn in file_io.list_directory(subdir)]
         np.random.shuffle(file_names)
         i = 0
@@ -202,9 +237,10 @@ def main(train_folder, test_file, job_dir):
     # CONTINUE WITH THIS:
     # Cant set histogram=1 because it expects validation data instead of a generator..
 
+    save_to_bucket = SaveToBucket()
 
+    model.fit_generator(gen, epochs=1000, steps_per_epoch=600, validation_data=generator(data_dir + '/val', 32), validation_steps=1, callbacks=[cb.ModelCheckpoint(MODEL_NAME+'.h5', save_best_only=True), cb.TensorBoard(log_dir=data_dir+'/logs/'+timeNow, batch_size=32, histogram_freq=1, embeddings_freq=0, embeddings_layer_names=embeddings_list, write_images=True) ,save_to_bucket])
 
-    model.fit_generator(gen, epochs=3, steps_per_epoch=1, validation_data=generator(data_dir + '/val', 32), validation_steps=1, callbacks=[cb.ModelCheckpoint('model.h5', save_best_only=True), cb.TensorBoard(log_dir=data_dir+'/logs/'+timeNow, batch_size=32, histogram_freq=1, embeddings_freq=0, embeddings_layer_names=embeddings_list, write_images=True) ,save_to_bucket])
 
     # TODO: Kaggle competitions accept different submission formats, so saving the predictions is up to you
 
@@ -212,8 +248,8 @@ def main(train_folder, test_file, job_dir):
 
     # Save model on google storage
     if not local:
-        with file_io.FileIO('model.h5', mode='rb') as input_f:
-            with file_io.FileIO(data_dir + '/model.h5', mode='wb+') as output_f:
+        with file_io.FileIO(MODEL_NAME+'.h5', mode='rb') as input_f:
+            with file_io.FileIO(data_dir + '/'+MODEL_NAME+'.h5', mode='wb+') as output_f:
                 output_f.write(input_f.read())
 
     print('hallo ik ben klaar')
