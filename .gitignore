@@ -5,3 +5,5 @@ validationdata/
 valdata/
 __pycache__/
 data/
+**/*.pyc
+
